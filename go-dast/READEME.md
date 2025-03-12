@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('test') {
             steps {
-                sh 'zap.sh -cmd -quickurl http://54.82.9.247:8080/employee/health -port 8090 -quickprogress -quickout /var/lib/jenkins/out2.html'
+                sh 'zap.sh -cmd -quickurl http://98.81.247.138:8080/api/v1/employee/health -quickprogress -quickout /var/lib/jenkins/out2.html'
             }
         }
         
@@ -25,20 +25,18 @@ pipeline {
      post {
         always {
             echo 'Pipeline completed.'
-            archiveArtifacts artifacts: 'target/dependency-check-report.html', allowEmptyArchive: true
         }
 
         success {
             emailext(
-        attachmentsPattern: 'target/dependency-check-report.html',
         body: """Hello,
 
-The Jenkins pipeline **${env.JOB_NAME}** has completed successfully on **Build #${env.BUILD_NUMBER}**.
+The Jenkins pipeline *${env.JOB_NAME}* has completed successfully on *Build #${env.BUILD_NUMBER}*.
 
-**Build Details:**  
-- **Job Name:** ${env.JOB_NAME}  
-- **Build Number:** ${env.BUILD_NUMBER}  
-- **Build URL:** ${env.BUILD_URL}  
+*Build Details:*  
+- *Job Name:* ${env.JOB_NAME}  
+- *Build Number:* ${env.BUILD_NUMBER}  
+- *Build URL:* ${env.BUILD_URL}  
 
 You can find the dependency check report attached.
 
@@ -52,15 +50,14 @@ Jenkins CI
 
         failure {
             emailext(
-                attachmentsPattern: 'target/dependency-check-report.html',
                 body: """Hello,
 
-The Jenkins pipeline **${env.JOB_NAME}** has failed on **Build #${env.BUILD_NUMBER}**.
+The Jenkins pipeline *${env.JOB_NAME}* has failed on *Build #${env.BUILD_NUMBER}*.
 
- **Job Details:**  
-- **Job Name:** ${env.JOB_NAME}  
-- **Build Number:** ${env.BUILD_NUMBER}  
-- **Build URL:** ${env.BUILD_URL}  
+ *Job Details:*  
+- *Job Name:* ${env.JOB_NAME}  
+- *Build Number:* ${env.BUILD_NUMBER}  
+- *Build URL:* ${env.BUILD_URL}  
 
 Please review the attached logs and reports for more details.
 

@@ -1,7 +1,7 @@
 node {
     try {
         stage('Test') {
-            sh 'zap.sh -cmd -quickurl http://54.82.9.247:8080/employee/health -port 8090 -quickprogress -quickout /var/lib/jenkins/out2.html'
+            sh 'zap.sh -cmd -quickurl http://98.81.247.138:8080/api/v1/employee/health -quickprogress -quickout /var/lib/jenkins/out2.html'
         }
 
         stage('Publish') {
@@ -43,20 +43,21 @@ Jenkins CI
 
         // Send failure email
         emailext(
-            body: """Hello,
-
-The Jenkins pipeline **${env.JOB_NAME}** has failed on **Build #${env.BUILD_NUMBER}**.
-
-**Job Details:**  
-- **Job Name:** ${env.JOB_NAME}  
-- **Build Number:** ${env.BUILD_NUMBER}  
-- **Build URL:** ${env.BUILD_URL}  
-
-Please review the attached logs and reports for more details.
-
-Regards,  
-Jenkins CI
-""",
+            body: """
+            Hello,
+            
+            The Jenkins pipeline **${env.JOB_NAME}** has failed on **Build #${env.BUILD_NUMBER}**.
+            
+            **Job Details:**  
+            - **Job Name:** ${env.JOB_NAME}  
+            - **Build Number:** ${env.BUILD_NUMBER}  
+            - **Build URL:** ${env.BUILD_URL}  
+            
+            Please review the attached logs and reports for more details.
+            
+            Regards,  
+            Jenkins CI
+            """,
             subject: "Jenkins Pipeline Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
             to: 'jnikita647@gmail.com'
         )

@@ -1,0 +1,82 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git branch: 'main', url: 'https://github.com/snaatak-Zero-Downtime-Crew/salary-api.git', credentialsId: 'snaatak'
+            }
+        }
+
+        stage('Dependency Scanning') {
+            steps {
+                sh 'mvn org.owasp:dependency-check-maven:check'
+            }
+        }
+
+        stage('Publish Report') {
+            steps {
+                publishHTML([
+                    allowMissing: false, 
+                    alwaysLinkToLastBuild: true, 
+                    keepAll: false, 
+                    reportDir: 'target', 
+                    reportFiles: 'dependency-check-report.html', 
+                    reportName: 'Dependency Check Report', 
+                    reportTitles: ''
+                ])
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline completed.'
+            archiveArtifacts artifacts: 'target/dependency-check-report.html', allowEmptyArchive: true
+        }
+
+        success {
+            emailext(
+        attachmentsPattern: 'target/dependency-check-report.html',
+        body: """Hello,
+
+The Jenkins pipeline *${env.JOB_NAME}* has completed successfully on *Build #${env.BUILD_NUMBER}*.
+
+*Build Details:*  
+- *Job Name:* ${env.JOB_NAME}  
+- *Build Number:* ${env.BUILD_NUMBER}  
+- *Build URL:* ${env.BUILD_URL}  
+
+You can find the dependency check report attached.
+
+Best regards,  
+Jenkins CI
+""",
+        subject: "Jenkins Build SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+        to: 'jnikita647@gmail.com'
+    )
+        }
+
+        failure {
+            emailext(
+                attachmentsPattern: 'target/dependency-check-report.html',
+                body: """Hello,
+
+The Jenkins pipeline *${env.JOB_NAME}* has failed on *Build #${env.BUILD_NUMBER}*.
+
+ *Job Details:*  
+- *Job Name:* ${env.JOB_NAME}  
+- *Build Number:* ${env.BUILD_NUMBER}  
+- *Build URL:* ${env.BUILD_URL}  
+
+Please review the attached logs and reports for more details.
+
+Regards,  
+Jenkins CI
+""",
+                subject: "Jenkins Pipeline Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                to: 'jnikita647@gmail.com'
+            )
+        }
+    }
+}

@@ -1,0 +1,97 @@
+pipeline {
+    agent any
+
+    tools {
+        nodejs 'nodejs'  
+    }
+
+    environment {
+        REPORT_FILE = "dependency_report.txt" 
+        branch_name = 'main'
+        repo_url = 'https://github.com/snaatak-Zero-Downtime-Crew/frontend.git'
+        SLACK_CHANNEL = "jenkins"
+        EMAIL_RECIPIENTS = "jnikita647@gmail.com" 
+    }
+
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Clone Repository') {
+            steps {
+                git url: repo_url, branch: branch_name, credentialsId: 'git-cred'
+            }
+        }
+
+        stage('Dependency Check') {
+            steps {
+                sh """
+                npm audit --html > dependency_report.html || true
+                jq '.' dependency_report.html > ${REPORT_FILE} || echo "Error processing report" > ${REPORT_FILE}
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline completed.'
+            archiveArtifacts artifacts: "${REPORT_FILE}", allowEmptyArchive: true
+        }
+
+        success {
+            emailext( 
+                subject: "React Dependency Scan Report: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
+                body: """
+                Hello Team,
+
+                The latest React dependency vulnerability scan has been completed successfully.  
+                
+                **Build Details:**
+                - Job Name: ${env.JOB_NAME}
+                - Build Number: ${env.BUILD_NUMBER}
+                - Jenkins URL: ${env.BUILD_URL}
+                
+                Please review the attached report for any vulnerabilities.
+
+                Regards,  
+                Nikita
+                """,
+                to: "${EMAIL_RECIPIENTS}",
+                attachLog: false,
+                attachmentsPattern: "${REPORT_FILE}"
+            )
+            
+            slackSend(channel: "${env.SLACK_CHANNEL}", message: "Build Successful: JOB-Name:- ${env.JOB_NAME} Build_No.:- ${env.BUILD_NUMBER} & Build-URL:- ${env.BUILD_URL}", tokenCredentialId: 'slack')
+        }
+        
+        failure {
+            emailext(
+                subject: "React Dependency Scan FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+                Hello Team,
+
+                The React dependency scan has **failed** for Build #${env.BUILD_NUMBER}.  
+                
+                **Please review the error logs and address any issues.**
+
+                **Build Details:**
+                - Job Name: ${env.JOB_NAME}  
+                - Build Number: ${env.BUILD_NUMBER}  
+                - Build URL: ${env.BUILD_URL}  
+
+                Regards,  
+                Nikita  
+                """,
+                to: "${EMAIL_RECIPIENTS}",
+                attachmentsPattern: "${REPORT_FILE}",
+                attachLog: true
+            )
+            
+            slackSend(channel: "${env.SLACK_CHANNEL}", message: "Build Failure: JOB-Name:- ${env.JOB_NAME} Build_No.:- ${env.BUILD_NUMBER} & Build-URL:- ${env.BUILD_URL}", tokenCredentialId: 'slack')
+        }
+    }
+}

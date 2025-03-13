@@ -1,0 +1,124 @@
+pipeline {
+    agent any
+    tools {
+        go 'Go'
+    }
+    environment {
+        url = "https://github.com/snaatak-Zero-Downtime-Crew/employee-api.git"
+        GOPATH = "${WORKSPACE}/go"
+        PATH = "${WORKSPACE}/go/bin:$PATH"
+        EMAIL_RECIPIENTS = "jnikita647@gmail.com"
+        SLACK_CHANNEL = 'jenkins'
+
+    }
+
+    stages {
+        stage('Clone Repo') {
+            steps {
+                git branch: 'main', credentialsId: 'git-cred', url: "${url}"
+            }
+        }
+
+        stage('Install golangci-lint') {
+            steps {
+                script {
+                    sh 'curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s latest'
+                }
+            }
+        }
+
+        stage('Run Static Code Analysis') {
+            steps {
+                script {
+                    sh '''
+                    mkdir -p reports
+                    golangci-lint run --timeout=5m --out-format json > reports/lint-report.json || true
+                    '''
+                }
+            }
+        }
+
+        stage('Publish Report') {
+            steps {
+                script {
+                    sh 'cat reports/lint-report.json'
+                }
+            }
+        }
+
+        stage('Archive Report') {
+            steps {
+                archiveArtifacts artifacts: 'reports/lint-report.json', fingerprint: true
+            }
+        }
+    }
+
+    post {
+
+always {
+            echo 'Pipeline completed.'
+            archiveArtifacts artifacts: 'reports/lint-report.json', allowEmptyArchive: true
+        }
+
+
+
+
+        success {
+            
+                emailext( 
+                         subject: "Jenkins Lint Report: ${env.JOB_NAME} - Build #${env.BUILD_NUMBER}",
+                         body: """
+                         Hello Team,
+                         The static code analysis report for the latest build is attached.
+                         Build Details:
+                         - Job Name: ${env.JOB_NAME}
+                         - Build Number: ${env.BUILD_NUMBER}
+                         - Jenkins URL: ${env.BUILD_URL}
+                         
+                         Regards,
+                         Nikita
+                         """,
+                         to: "${EMAIL_RECIPIENTS}",
+                         attachLog: false,
+                         attachmentsPattern: "reports/lint-report.json"
+                   )
+            
+            slackSend(channel: "${env.SLACK_CHANNEL}", message: "Build Successful: JOB-Name:- ${JOB_NAME} Build_No.:- ${BUILD_NUMBER} & Build-URL:- ${BUILD_URL}", tokenCredentialId: 'slack')
+
+            
+
+        }
+        
+
+failure {
+        emailext(
+            subject: "Jenkins Pipeline FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            body: """
+                Hello team ,
+
+                The Jenkins pipeline ${env.JOB_NAME} has failed on Build #${env.BUILD_NUMBER}.
+
+                Job Details:
+                -Job Name: ${env.JOB_NAME}  
+                - Build Number: ${env.BUILD_NUMBER}  
+                - Build URL: ${env.BUILD_URL}  
+
+                Please review the attached static analysis report for more details.
+
+                Regards,  
+                Nikita  
+            """,
+            to: "${EMAIL_RECIPIENTS}",
+            attachmentsPattern: "reports/lint-report.json",
+            attachLog: true
+        )
+        
+        slackSend(channel: "${env.SLACK_CHANNEL}", message: "Build Failure: JOB-Name:- ${JOB_NAME} Build_No.:- ${BUILD_NUMBER} & Build-URL:- ${BUILD_URL}", tokenCredentialId: 'slack')
+
+    }
+
+
+
+    }
+
+}
